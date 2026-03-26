@@ -1,12 +1,8 @@
-import os
-
 import psycopg2
 import psycopg2.extras
 
+from app.config import config
 from app.utils.data_loader import ingest_all_tables
-
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://dodge:dodge@localhost:5432/dodge")
-DATA_PATH = os.getenv("DATA_PATH", "./data")
 
 _connection: psycopg2.extensions.connection | None = None
 
@@ -38,12 +34,18 @@ INDEXES = [
 ]
 
 
+# --- Connection ---
+
+
 def get_connection() -> psycopg2.extensions.connection:
     global _connection
     if _connection is None or _connection.closed:
-        _connection = psycopg2.connect(DATABASE_URL)
+        _connection = psycopg2.connect(config.DATABASE_URL)
         _connection.autocommit = True
     return _connection
+
+
+# --- Init ---
 
 
 def init_db() -> dict[str, int]:
@@ -64,7 +66,7 @@ def init_db() -> dict[str, int]:
         cur.close()
         return counts
 
-    counts = ingest_all_tables(conn, DATA_PATH)
+    counts = ingest_all_tables(conn, config.DATA_PATH)
     _create_indexes(conn)
     cur.close()
     return counts
@@ -77,6 +79,9 @@ def _create_indexes(conn: psycopg2.extensions.connection):
             f'CREATE INDEX IF NOT EXISTS {idx_name} ON "{table}" ("{column}")'
         )
     cur.close()
+
+
+# --- Query helpers ---
 
 
 def execute_query(sql: str, params: tuple = ()) -> list[dict]:
