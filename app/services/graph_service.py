@@ -63,7 +63,9 @@ def get_node_detail(node_id: str) -> NodeDetailResponse | None:
         return None
 
     table, pk_col = table_map[prefix]
-    rows = execute_query(f'SELECT * FROM {table} WHERE "{pk_col}" = %s', (key,))
+    rows = execute_query(
+        f'SELECT * FROM "{table}" WHERE "{pk_col}" = %s', (key,)
+    )
     if not rows:
         return None
 
@@ -112,8 +114,8 @@ def expand_node(node_id: str) -> GraphResponse:
 
 def _load_sales_orders(nodes: dict[str, GraphNode]):
     rows = execute_query(
-        "SELECT salesOrder, soldToParty, totalNetAmount, transactionCurrency, "
-        "creationDate, overallDeliveryStatus, overallOrdReltdBillgStatus "
+        'SELECT "salesOrder", "soldToParty", "totalNetAmount", "transactionCurrency", '
+        '"creationDate", "overallDeliveryStatus", "overallOrdReltdBillgStatus" '
         "FROM sales_order_headers"
     )
     for r in rows:
@@ -125,8 +127,8 @@ def _load_sales_orders(nodes: dict[str, GraphNode]):
 
 def _load_deliveries(nodes: dict[str, GraphNode]):
     rows = execute_query(
-        "SELECT deliveryDocument, creationDate, overallGoodsMovementStatus, "
-        "overallPickingStatus FROM outbound_delivery_headers"
+        'SELECT "deliveryDocument", "creationDate", "overallGoodsMovementStatus", '
+        '"overallPickingStatus" FROM outbound_delivery_headers'
     )
     for r in rows:
         nid = f"DL:{r['deliveryDocument']}"
@@ -137,10 +139,11 @@ def _load_deliveries(nodes: dict[str, GraphNode]):
 
 def _load_billing_documents(nodes: dict[str, GraphNode]):
     rows = execute_query(
-        "SELECT billingDocument, billingDocumentType, totalNetAmount, "
-        "billingDocumentDate, soldToParty, accountingDocument, "
-        "billingDocumentIsCancelled FROM billing_document_headers "
-        "WHERE billingDocumentIsCancelled != 'true' OR billingDocumentIsCancelled IS NULL"
+        'SELECT "billingDocument", "billingDocumentType", "totalNetAmount", '
+        '"billingDocumentDate", "soldToParty", "accountingDocument", '
+        '"billingDocumentIsCancelled" FROM billing_document_headers '
+        "WHERE \"billingDocumentIsCancelled\" != 'true' "
+        'OR "billingDocumentIsCancelled" IS NULL'
     )
     for r in rows:
         nid = f"BD:{r['billingDocument']}"
@@ -154,8 +157,8 @@ def _load_billing_documents(nodes: dict[str, GraphNode]):
 
 def _load_journal_entries(nodes: dict[str, GraphNode]):
     rows = execute_query(
-        "SELECT DISTINCT accountingDocument, postingDate, accountingDocumentType, "
-        "customer FROM journal_entry_items_accounts_receivable"
+        'SELECT DISTINCT "accountingDocument", "postingDate", "accountingDocumentType", '
+        '"customer" FROM journal_entry_items_accounts_receivable'
     )
     seen = set()
     for r in rows:
@@ -171,8 +174,8 @@ def _load_journal_entries(nodes: dict[str, GraphNode]):
 
 def _load_payments(nodes: dict[str, GraphNode]):
     rows = execute_query(
-        "SELECT DISTINCT accountingDocument, postingDate, customer, "
-        "amountInTransactionCurrency, transactionCurrency "
+        'SELECT DISTINCT "accountingDocument", "postingDate", "customer", '
+        '"amountInTransactionCurrency", "transactionCurrency" '
         "FROM payments_accounts_receivable"
     )
     seen = set()
@@ -189,8 +192,8 @@ def _load_payments(nodes: dict[str, GraphNode]):
 
 def _load_business_partners(nodes: dict[str, GraphNode]):
     rows = execute_query(
-        "SELECT businessPartner, customer, businessPartnerName, "
-        "businessPartnerFullName FROM business_partners"
+        'SELECT "businessPartner", "customer", "businessPartnerName", '
+        '"businessPartnerFullName" FROM business_partners'
     )
     for r in rows:
         nid = f"BP:{r['businessPartner']}"
@@ -202,9 +205,10 @@ def _load_business_partners(nodes: dict[str, GraphNode]):
 
 def _load_products(nodes: dict[str, GraphNode]):
     rows = execute_query(
-        "SELECT p.product, p.productType, p.productGroup, p.baseUnit, "
-        "pd.productDescription FROM products p "
-        "LEFT JOIN product_descriptions pd ON p.product = pd.product AND pd.language = 'EN'"
+        'SELECT p."product", p."productType", p."productGroup", p."baseUnit", '
+        'pd."productDescription" FROM products p '
+        'LEFT JOIN product_descriptions pd ON p."product" = pd."product" '
+        "AND pd.\"language\" = 'EN'"
     )
     for r in rows:
         nid = f"PRD:{r['product']}"
@@ -217,9 +221,9 @@ def _load_products(nodes: dict[str, GraphNode]):
 
 def _build_so_to_delivery_edges(edges: list[GraphEdge], nodes: dict[str, GraphNode]):
     rows = execute_query(
-        "SELECT DISTINCT odi.deliveryDocument, odi.referenceSdDocument "
-        "FROM outbound_delivery_items odi "
-        "WHERE odi.referenceSdDocument IS NOT NULL AND odi.referenceSdDocument != ''"
+        'SELECT DISTINCT "deliveryDocument", "referenceSdDocument" '
+        "FROM outbound_delivery_items "
+        "WHERE \"referenceSdDocument\" IS NOT NULL AND \"referenceSdDocument\" != ''"
     )
     for r in rows:
         src = f"SO:{r['referenceSdDocument']}"
@@ -230,9 +234,9 @@ def _build_so_to_delivery_edges(edges: list[GraphEdge], nodes: dict[str, GraphNo
 
 def _build_so_to_billing_edges(edges: list[GraphEdge], nodes: dict[str, GraphNode]):
     rows = execute_query(
-        "SELECT DISTINCT bdi.billingDocument, bdi.referenceSdDocument "
-        "FROM billing_document_items bdi "
-        "WHERE bdi.referenceSdDocument IS NOT NULL AND bdi.referenceSdDocument != ''"
+        'SELECT DISTINCT "billingDocument", "referenceSdDocument" '
+        "FROM billing_document_items "
+        "WHERE \"referenceSdDocument\" IS NOT NULL AND \"referenceSdDocument\" != ''"
     )
     for r in rows:
         so_id = f"SO:{r['referenceSdDocument']}"
@@ -250,8 +254,8 @@ def _build_billing_to_journal_edges(
     edges: list[GraphEdge], nodes: dict[str, GraphNode]
 ):
     rows = execute_query(
-        "SELECT billingDocument, accountingDocument FROM billing_document_headers "
-        "WHERE accountingDocument IS NOT NULL AND accountingDocument != ''"
+        'SELECT "billingDocument", "accountingDocument" FROM billing_document_headers '
+        "WHERE \"accountingDocument\" IS NOT NULL AND \"accountingDocument\" != ''"
     )
     for r in rows:
         src = f"BD:{r['billingDocument']}"
@@ -264,9 +268,10 @@ def _build_journal_to_payment_edges(
     edges: list[GraphEdge], nodes: dict[str, GraphNode]
 ):
     rows = execute_query(
-        "SELECT DISTINCT clearingAccountingDocument, accountingDocument "
+        'SELECT DISTINCT "clearingAccountingDocument", "accountingDocument" '
         "FROM payments_accounts_receivable "
-        "WHERE clearingAccountingDocument IS NOT NULL AND clearingAccountingDocument != ''"
+        "WHERE \"clearingAccountingDocument\" IS NOT NULL "
+        "AND \"clearingAccountingDocument\" != ''"
     )
     for r in rows:
         src = f"JE:{r['clearingAccountingDocument']}"
@@ -277,8 +282,8 @@ def _build_journal_to_payment_edges(
 
 def _build_so_to_bp_edges(edges: list[GraphEdge], nodes: dict[str, GraphNode]):
     rows = execute_query(
-        "SELECT salesOrder, soldToParty FROM sales_order_headers "
-        "WHERE soldToParty IS NOT NULL AND soldToParty != ''"
+        'SELECT "salesOrder", "soldToParty" FROM sales_order_headers '
+        "WHERE \"soldToParty\" IS NOT NULL AND \"soldToParty\" != ''"
     )
     for r in rows:
         src = f"SO:{r['salesOrder']}"
@@ -289,8 +294,8 @@ def _build_so_to_bp_edges(edges: list[GraphEdge], nodes: dict[str, GraphNode]):
 
 def _build_so_to_product_edges(edges: list[GraphEdge], nodes: dict[str, GraphNode]):
     rows = execute_query(
-        "SELECT DISTINCT salesOrder, material FROM sales_order_items "
-        "WHERE material IS NOT NULL AND material != ''"
+        'SELECT DISTINCT "salesOrder", "material" FROM sales_order_items '
+        "WHERE \"material\" IS NOT NULL AND \"material\" != ''"
     )
     for r in rows:
         src = f"SO:{r['salesOrder']}"
@@ -320,9 +325,10 @@ def _expand_sales_order(key: str, node_id: str, nodes: dict, edges: list):
             prd_id = f"PRD:{item['material']}"
             if prd_id not in nodes:
                 prd_rows = execute_query(
-                    "SELECT p.*, pd.productDescription FROM products p "
-                    "LEFT JOIN product_descriptions pd ON p.product = pd.product AND pd.language = 'EN' "
-                    'WHERE p.product = %s',
+                    'SELECT p.*, pd."productDescription" FROM products p '
+                    'LEFT JOIN product_descriptions pd ON p."product" = pd."product" '
+                    "AND pd.\"language\" = 'EN' "
+                    'WHERE p."product" = %s',
                     (item["material"],),
                 )
                 if prd_rows:
@@ -393,7 +399,8 @@ def _expand_billing(key: str, node_id: str, nodes: dict, edges: list):
         edges.append(GraphEdge(source=node_id, target=item_id, type="HAS_ITEM"))
 
     cancellations = execute_query(
-        'SELECT * FROM billing_document_cancellations WHERE "cancelledBillingDocument" = %s',
+        'SELECT * FROM billing_document_cancellations '
+        'WHERE "cancelledBillingDocument" = %s',
         (key,),
     )
     for canc in cancellations:
@@ -437,9 +444,9 @@ def _expand_business_partner(key: str, node_id: str, nodes: dict, edges: list):
 
 def _expand_product(key: str, node_id: str, nodes: dict, edges: list):
     plant_rows = execute_query(
-        'SELECT pp.*, p.plantName FROM product_plants pp '
-        'LEFT JOIN plants p ON pp.plant = p.plant '
-        'WHERE pp.product = %s',
+        'SELECT pp.*, p."plantName" FROM product_plants pp '
+        'LEFT JOIN plants p ON pp."plant" = p."plant" '
+        'WHERE pp."product" = %s',
         (key,),
     )
     for pp in plant_rows[:20]:
