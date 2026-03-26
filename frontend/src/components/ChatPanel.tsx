@@ -67,7 +67,7 @@ export default function ChatPanel({ messages, loading, onSend, onClear }: Props)
         </div>
         {messages.length > 1 && (
           <AlertDialog>
-            <AlertDialogTrigger asChild>
+            <AlertDialogTrigger>
               <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
                 <Trash2 className="h-3 w-3" />
               </Button>
@@ -174,7 +174,6 @@ function ThinkingDots() {
 function MessageBubble({ message }: { message: ChatMessage }) {
   const [showSql, setShowSql] = useState(false)
   const [copiedSql, setCopiedSql] = useState(false)
-  const [copiedAnswer, setCopiedAnswer] = useState(false)
   const hasData = message.data && message.data.length > 0
   const [showData, setShowData] = useState(hasData && message.data!.length <= 20)
 
@@ -184,12 +183,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       setCopiedSql(true)
       setTimeout(() => setCopiedSql(false), 1500)
     }
-  }
-
-  const handleCopyAnswer = () => {
-    navigator.clipboard.writeText(message.content)
-    setCopiedAnswer(true)
-    setTimeout(() => setCopiedAnswer(false), 1500)
   }
 
   if (message.loading) {
