@@ -24,12 +24,10 @@ class ChatResponse(BaseModel):
 
 @router.post("/query", response_model=ChatResponse)
 def chat_query(req: ChatRequest):
-    # Layer 1: Keyword pre-filter
     off_topic_msg = check_off_topic(req.question)
     if off_topic_msg:
         return ChatResponse(answer=off_topic_msg, off_topic=True)
 
-    # Layer 2: LLM call
     try:
         llm_result = call_llm(req.question, req.history)
     except Exception as e:
@@ -44,7 +42,6 @@ def chat_query(req: ChatRequest):
     if not parsed:
         return ChatResponse(answer=raw_response)
 
-    # Layer 2b: LLM-level off-topic rejection
     if parsed.get("off_topic"):
         return ChatResponse(
             answer=parsed.get(
@@ -60,7 +57,6 @@ def chat_query(req: ChatRequest):
     if not sql:
         return ChatResponse(answer=explanation or raw_response)
 
-    # Layer 3: SQL validation + execution
     result = execute_safe_query(sql)
 
     if not result["success"]:

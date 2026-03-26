@@ -13,14 +13,16 @@ BLOCKED_KEYWORDS = re.compile(
 
 def validate_sql(sql: str) -> str | None:
     stripped = sql.strip().rstrip(";")
+    upper = stripped.upper().lstrip()
 
-    if not stripped.upper().startswith("SELECT"):
+    if not (upper.startswith("SELECT") or upper.startswith("WITH")):
         return "Only SELECT queries are allowed."
 
     if BLOCKED_KEYWORDS.search(stripped):
         return "Query contains forbidden keywords."
 
-    if ";" in stripped:
+    parts = [p.strip() for p in stripped.split(";") if p.strip()]
+    if len(parts) > 1:
         return "Multi-statement queries are not allowed."
 
     return None

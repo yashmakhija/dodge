@@ -40,13 +40,4 @@ def _extract_json_object(text: str) -> str | None:
 
 
 def format_answer(explanation: str, data: list[dict]) -> str:
-    parts = [explanation]
-
-    if len(data) <= 10:
-        for row in data:
-            items = [f"**{k}**: {v}" for k, v in row.items() if v is not None]
-            parts.append("- " + ", ".join(items))
-    else:
-        parts.append(f"\n*Showing {len(data)} results in the table below.*")
-
-    return "\n".join(parts)
+    return explanation

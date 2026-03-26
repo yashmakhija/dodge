@@ -34,8 +34,6 @@ INDEXES = [
 ]
 
 
-# --- Connection ---
-
 
 def get_connection() -> psycopg2.extensions.connection:
     global _connection
@@ -44,8 +42,6 @@ def get_connection() -> psycopg2.extensions.connection:
         _connection.autocommit = True
     return _connection
 
-
-# --- Init ---
 
 
 def init_db() -> dict[str, int]:
@@ -80,8 +76,6 @@ def _create_indexes(conn: psycopg2.extensions.connection):
         )
     cur.close()
 
-
-# --- Query helpers ---
 
 
 def execute_query(sql: str, params: tuple = ()) -> list[dict]:

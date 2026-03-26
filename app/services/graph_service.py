@@ -72,11 +72,7 @@ def get_node_detail(node_id: str) -> NodeDetailResponse | None:
     row = rows[0]
     node_type = type_map[prefix]
     label = _make_label(prefix, row)
-
-    overview = get_overview_graph()
-    connections = sum(
-        1 for e in overview.edges if e.source == node_id or e.target == node_id
-    )
+    connections = _count_connections(prefix, key)
 
     return NodeDetailResponse(
         id=node_id,
@@ -108,8 +104,6 @@ def expand_node(node_id: str) -> GraphResponse:
 
     return GraphResponse(nodes=list(nodes.values()), edges=edges)
 
-
-# --- Node loaders ---
 
 
 def _load_sales_orders(nodes: dict[str, GraphNode]):
@@ -216,8 +210,6 @@ def _load_products(nodes: dict[str, GraphNode]):
         nodes[nid] = GraphNode(id=nid, type="Product", label=label, metadata=r)
 
 
-# --- Edge builders ---
-
 
 def _build_so_to_delivery_edges(edges: list[GraphEdge], nodes: dict[str, GraphNode]):
     rows = execute_query(
@@ -303,8 +295,6 @@ def _build_so_to_product_edges(edges: list[GraphEdge], nodes: dict[str, GraphNod
         if src in nodes and tgt in nodes:
             edges.append(GraphEdge(source=src, target=tgt, type="CONTAINS_PRODUCT"))
 
-
-# --- Expand helpers ---
 
 
 def _expand_sales_order(key: str, node_id: str, nodes: dict, edges: list):
@@ -459,6 +449,35 @@ def _expand_product(key: str, node_id: str, nodes: dict, edges: list):
                 metadata=pp,
             )
         edges.append(GraphEdge(source=node_id, target=plant_id, type="AVAILABLE_AT"))
+
+
+def _count_connections(prefix: str, key: str) -> int:
+    count = 0
+    queries = {
+        "SO": [
+            ('SELECT COUNT(*) FROM outbound_delivery_items WHERE "referenceSdDocument" = %s', key),
+            ('SELECT COUNT(*) FROM billing_document_items WHERE "referenceSdDocument" = %s', key),
+            ('SELECT COUNT(DISTINCT "material") FROM sales_order_items WHERE "salesOrder" = %s', key),
+        ],
+        "DL": [
+            ('SELECT COUNT(*) FROM outbound_delivery_items WHERE "deliveryDocument" = %s', key),
+        ],
+        "BD": [
+            ('SELECT COUNT(*) FROM billing_document_items WHERE "billingDocument" = %s', key),
+            ('SELECT COUNT(*) FROM billing_document_cancellations WHERE "cancelledBillingDocument" = %s', key),
+        ],
+        "BP": [
+            ('SELECT COUNT(*) FROM sales_order_headers WHERE "soldToParty" = %s', key),
+        ],
+        "PRD": [
+            ('SELECT COUNT(*) FROM sales_order_items WHERE "material" = %s', key),
+        ],
+    }
+    for sql, param in queries.get(prefix, []):
+        rows = execute_query(sql, (param,))
+        if rows:
+            count += rows[0].get("count", 0)
+    return count
 
 
 def _make_label(prefix: str, row: dict) -> str:
