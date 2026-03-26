@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import Logo from '@/components/Logo'
 import { ChevronDown, ChevronUp, Code2, Table2, Sparkles, Trash2 } from 'lucide-react'
 import type { ChatMessage } from '@/store/chatStore'
@@ -62,9 +66,25 @@ export default function ChatPanel({ messages, loading, onSend, onClear }: Props)
           <div className="text-[11px] text-muted-foreground">Order to Cash</div>
         </div>
         {messages.length > 1 && (
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={onClear}>
-            <Trash2 className="h-3 w-3" />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear chat history?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will delete all messages and start a fresh conversation. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="text-xs">Cancel</AlertDialogCancel>
+                <AlertDialogAction className="text-xs" onClick={onClear}>Clear All</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </div>
 
@@ -86,7 +106,7 @@ export default function ChatPanel({ messages, loading, onSend, onClear }: Props)
                     key={q}
                     onClick={() => { if (!loading) onSend(q) }}
                     disabled={loading}
-                    className="text-left text-[11.5px] px-2.5 py-1.5 bg-muted/60 hover:bg-muted border rounded-md text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    className="text-left text-[11.5px] px-2.5 py-1.5 bg-muted/60 hover:bg-muted border rounded-md text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     {q}
                   </button>
@@ -222,7 +242,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         {message.sql && (
           <button
             onClick={() => setShowSql(!showSql)}
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors group"
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors group cursor-pointer"
           >
             <Code2 className="h-3 w-3" />
             <span className="group-hover:underline">SQL Query</span>
@@ -238,7 +258,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         {hasData && (
           <button
             onClick={() => setShowData(!showData)}
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors group"
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors group cursor-pointer"
           >
             <Table2 className="h-3 w-3" />
             <Badge variant="secondary" className="text-[9px] px-1.5 py-0 font-mono">

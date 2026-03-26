@@ -205,7 +205,7 @@ export default function GraphPanel({
   }
 
   return (
-    <div className="relative w-full h-full">
+    <div className="absolute inset-0">
       <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
         <Button
           variant="outline"

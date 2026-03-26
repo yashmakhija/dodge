@@ -86,7 +86,7 @@ export default function NodeDetail({ node, onClose, onExpand, isExpanded }: Prop
         {hiddenCount > 0 && !showAll && (
           <button
             onClick={() => setShowAll(true)}
-            className="flex items-center gap-1 mt-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1 mt-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             <ChevronDown className="h-3 w-3" />
             Show {hiddenCount} more fields
@@ -96,7 +96,7 @@ export default function NodeDetail({ node, onClose, onExpand, isExpanded }: Prop
         {showAll && otherFields.length > 0 && (
           <button
             onClick={() => setShowAll(false)}
-            className="flex items-center gap-1 mt-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1 mt-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             <ChevronUp className="h-3 w-3" />
             Show less
