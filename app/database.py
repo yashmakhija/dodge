@@ -1,13 +1,14 @@
 import os
-import sqlite3
-from pathlib import Path
+
+import psycopg2
+import psycopg2.extras
 
 from app.utils.data_loader import ingest_all_tables
 
-DB_PATH = os.getenv("DB_PATH", "o2c.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://dodge:dodge@localhost:5432/dodge")
 DATA_PATH = os.getenv("DATA_PATH", "./data")
 
-_connection: sqlite3.Connection | None = None
+_connection: psycopg2.extensions.connection | None = None
 
 INDEXES = [
     ("idx_soh_soldtoparty", "sales_order_headers", "soldToParty"),
@@ -37,78 +38,86 @@ INDEXES = [
 ]
 
 
-def get_connection() -> sqlite3.Connection:
+def get_connection() -> psycopg2.extensions.connection:
     global _connection
-    if _connection is None:
-        _connection = sqlite3.connect(DB_PATH, check_same_thread=False)
-        _connection.row_factory = sqlite3.Row
-        _connection.execute("PRAGMA journal_mode=WAL")
-        _connection.execute("PRAGMA foreign_keys=ON")
+    if _connection is None or _connection.closed:
+        _connection = psycopg2.connect(DATABASE_URL)
+        _connection.autocommit = True
     return _connection
 
 
 def init_db() -> dict[str, int]:
     conn = get_connection()
+    cur = conn.cursor()
 
-    existing = {
-        row[0]
-        for row in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
-    }
+    cur.execute(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = 'public'"
+    )
+    existing = {row[0] for row in cur.fetchall()}
 
     if len(existing) >= 19:
         counts = {}
-        for row in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall():
-            name = row[0]
-            count = conn.execute(f"SELECT COUNT(*) FROM {name}").fetchone()[0]
-            counts[name] = count
+        for table in existing:
+            cur.execute(f'SELECT COUNT(*) FROM "{table}"')
+            counts[table] = cur.fetchone()[0]
+        cur.close()
         return counts
 
     counts = ingest_all_tables(conn, DATA_PATH)
     _create_indexes(conn)
-    conn.commit()
+    cur.close()
     return counts
 
 
-def _create_indexes(conn: sqlite3.Connection):
+def _create_indexes(conn: psycopg2.extensions.connection):
+    cur = conn.cursor()
     for idx_name, table, column in INDEXES:
-        conn.execute(
-            f'CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ("{column}")'
+        cur.execute(
+            f'CREATE INDEX IF NOT EXISTS {idx_name} ON "{table}" ("{column}")'
         )
+    cur.close()
 
 
 def execute_query(sql: str, params: tuple = ()) -> list[dict]:
     conn = get_connection()
-    cursor = conn.execute(sql, params)
-    columns = [desc[0] for desc in cursor.description] if cursor.description else []
-    return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(sql, params)
+    rows = [dict(row) for row in cur.fetchall()]
+    cur.close()
+    return rows
 
 
 def get_table_names() -> list[str]:
     conn = get_connection()
-    rows = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-    ).fetchall()
-    return [row[0] for row in rows]
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = 'public' ORDER BY table_name"
+    )
+    names = [row[0] for row in cur.fetchall()]
+    cur.close()
+    return names
 
 
 def get_table_schema(table_name: str) -> list[dict]:
     conn = get_connection()
-    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-    return [{"name": row[1], "type": row[2]} for row in rows]
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT column_name, data_type FROM information_schema.columns "
+        "WHERE table_name = %s ORDER BY ordinal_position",
+        (table_name,),
+    )
+    result = [{"name": row[0], "type": row[1]} for row in cur.fetchall()]
+    cur.close()
+    return result
 
 
 def get_schema_ddl() -> str:
-    conn = get_connection()
     tables = get_table_names()
     ddl_parts = []
     for table in tables:
-        row = conn.execute(
-            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,)
-        ).fetchone()
-        if row:
-            ddl_parts.append(row[0])
+        schema = get_table_schema(table)
+        cols = ", ".join(f'"{col["name"]}" TEXT' for col in schema)
+        ddl_parts.append(f'CREATE TABLE "{table}" ({cols})')
     return ";\n\n".join(ddl_parts) + ";"

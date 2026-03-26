@@ -1,7 +1,8 @@
 import json
-import os
-import sqlite3
 from pathlib import Path
+
+import psycopg2.extensions
+import psycopg2.extras
 
 
 def load_jsonl_file(filepath: str) -> list[dict]:
@@ -40,30 +41,35 @@ def serialize_value(value) -> str | None:
     return str(value)
 
 
-def ingest_table(conn: sqlite3.Connection, table_name: str, rows: list[dict]):
+def ingest_table(conn: psycopg2.extensions.connection, table_name: str, rows: list[dict]):
     if not rows:
         return 0
 
     columns = get_all_columns(rows)
     cols_quoted = [f'"{col}"' for col in columns]
-    placeholders = ", ".join(["?"] * len(columns))
+    placeholders = ", ".join(["%s"] * len(columns))
 
-    conn.execute(
-        f"CREATE TABLE IF NOT EXISTS {table_name} ({', '.join(f'{c} TEXT' for c in cols_quoted)})"
+    cur = conn.cursor()
+    cur.execute(
+        f'CREATE TABLE IF NOT EXISTS "{table_name}" '
+        f'({", ".join(f"{c} TEXT" for c in cols_quoted)})'
     )
 
     values = []
     for row in rows:
         values.append(tuple(serialize_value(row.get(col)) for col in columns))
 
-    conn.executemany(
-        f"INSERT OR IGNORE INTO {table_name} ({', '.join(cols_quoted)}) VALUES ({placeholders})",
+    psycopg2.extras.execute_batch(
+        cur,
+        f'INSERT INTO "{table_name}" ({", ".join(cols_quoted)}) VALUES ({placeholders})',
         values,
     )
+
+    cur.close()
     return len(values)
 
 
-def ingest_all_tables(conn: sqlite3.Connection, data_dir: str) -> dict[str, int]:
+def ingest_all_tables(conn: psycopg2.extensions.connection, data_dir: str) -> dict[str, int]:
     data_path = Path(data_dir)
     counts = {}
 
