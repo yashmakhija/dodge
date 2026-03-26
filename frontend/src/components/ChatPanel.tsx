@@ -6,7 +6,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import Logo from '@/components/Logo'
-import { ChevronDown, ChevronUp, Code2, Table2, Sparkles, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Code2, Table2, Trash2, MessageSquare } from 'lucide-react'
 import type { ChatMessage } from '@/store/chatStore'
 
 const SUGGESTIONS = [
@@ -59,7 +59,7 @@ export default function ChatPanel({ messages, loading, onSend, onClear }: Props)
   }
 
   return (
-    <aside className="w-[380px] h-full shrink-0 bg-card flex flex-col rounded-md border overflow-hidden">
+    <aside className="w-[380px] max-md:w-full h-full shrink-0 bg-card flex flex-col rounded-md max-md:rounded-none border max-md:border-0 overflow-hidden">
       <div className="px-5 pt-4 pb-3 border-b shrink-0 flex items-start justify-between">
         <div>
           <div className="text-[13px] font-semibold">Chat with Graph</div>
@@ -97,7 +97,7 @@ export default function ChatPanel({ messages, loading, onSend, onClear }: Props)
           {showSuggestions && (
             <div className="space-y-2 pt-1">
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
-                <Sparkles className="h-3 w-3" />
+                <MessageSquare className="h-3 w-3" />
                 Try asking
               </div>
               <div className="flex flex-wrap gap-1.5">

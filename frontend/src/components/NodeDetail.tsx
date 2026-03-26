@@ -52,7 +52,7 @@ export default function NodeDetail({ node, onClose, onExpand, isExpanded }: Prop
   }
 
   return (
-    <div className="absolute top-3 left-3 z-20 w-[320px] max-h-[calc(100%-24px)] flex flex-col bg-card border rounded-lg shadow-xl overflow-hidden">
+    <div className="absolute top-3 left-3 z-20 w-[320px] max-md:w-[calc(100%-24px)] max-md:left-3 max-md:right-3 max-h-[calc(100%-24px)] flex flex-col bg-card border rounded-lg shadow-xl overflow-hidden">
       <div className="px-4 py-3 shrink-0 flex items-start justify-between" style={{ backgroundColor: config.bg }}>
         <div>
           <Badge
