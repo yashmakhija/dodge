@@ -9,11 +9,11 @@ import { useHighlightedNodes } from '@/hooks/useHighlightedNodes'
 
 export default function App() {
   const {
-    nodes, edges, loading, error, selectedNode, expandedNodes, traceNodeIds,
+    nodes, edges, loading, error, selectedNode, expandedNodes, traceNodeIds, lastExpandedGroup,
     fetchOverview, selectNode, clearSelection, expandNode,
   } = useGraphStore()
 
-  const { messages, loading: chatLoading, sendMessage } = useChatStore()
+  const { messages, loading: chatLoading, sendMessage, clearHistory } = useChatStore()
 
   useEffect(() => { fetchOverview() }, [fetchOverview])
 
@@ -33,6 +33,7 @@ export default function App() {
             expandedNodes={expandedNodes}
             highlightedNodes={highlightedNodes}
             traceNodeIds={traceNodeIds}
+            lastExpandedGroup={lastExpandedGroup}
             onNodeClick={selectNode}
             onNodeExpand={expandNode}
           />
@@ -55,6 +56,7 @@ export default function App() {
             messages={messages}
             loading={chatLoading}
             onSend={sendMessage}
+            onClear={clearHistory}
           />
         </div>
       </div>

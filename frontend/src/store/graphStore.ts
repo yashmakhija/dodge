@@ -18,6 +18,7 @@ interface GraphState {
   expandedNodes: Set<string>
   traceNodeIds: Set<string>
   traceFlow: string[]
+  lastExpandedGroup: Set<string>
 
   fetchOverview: () => Promise<void>
   selectNode: (nodeId: string) => Promise<void>
@@ -42,6 +43,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   expandedNodes: new Set(),
   traceNodeIds: new Set(),
   traceFlow: [],
+  lastExpandedGroup: new Set(),
 
   fetchOverview: async () => {
     try {
@@ -79,10 +81,13 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         const nextExpanded = new Set(state.expandedNodes)
         nextExpanded.add(nodeId)
 
+        const group = new Set([nodeId, ...newNodes.map((n) => n.id)])
+
         return {
           nodes: [...state.nodes, ...uniqueNodes],
           edges: [...state.edges, ...uniqueEdges],
           expandedNodes: nextExpanded,
+          lastExpandedGroup: group,
         }
       })
     } catch (err) {

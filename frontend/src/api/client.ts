@@ -36,6 +36,8 @@ export interface ChatResponse {
   data: Record<string, string | null>[] | null
   error: string | null
   off_topic: boolean
+  trace_doc_id: string | null
+  trace_flow: string[] | null
 }
 
 export async function fetchGraphOverview(): Promise<GraphResponse> {

@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ForceGraph2D from 'react-force-graph-2d'
 import { Button } from '@/components/ui/button'
-import { Minimize2, Maximize2, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import type { NodeDetailResponse } from '@/api/client'
 
 const NODE_COLORS: Record<string, string> = {
@@ -55,6 +55,7 @@ interface Props {
   expandedNodes: Set<string>
   highlightedNodes: Set<string>
   traceNodeIds: Set<string>
+  lastExpandedGroup: Set<string>
   onNodeClick: (nodeId: string) => void
   onNodeExpand: (nodeId: string) => void
 }
@@ -67,6 +68,7 @@ export default function GraphPanel({
   expandedNodes,
   highlightedNodes,
   traceNodeIds,
+  lastExpandedGroup,
   onNodeClick,
   onNodeExpand,
 }: Props) {
@@ -75,13 +77,41 @@ export default function GraphPanel({
   const expandedRef = useRef(expandedNodes)
   const highlightedRef = useRef(highlightedNodes)
   const traceRef = useRef(traceNodeIds)
+  const prevTraceSize = useRef(0)
+  const prevExpandGroup = useRef(0)
   selectedRef.current = selectedNode
   expandedRef.current = expandedNodes
   highlightedRef.current = highlightedNodes
   traceRef.current = traceNodeIds
 
   const [showGranular, setShowGranular] = useState(false)
-  const [minimized, setMinimized] = useState(false)
+
+  useEffect(() => {
+    if (traceNodeIds.size > 0 && traceNodeIds.size !== prevTraceSize.current && graphRef.current) {
+      setTimeout(() => {
+        if (!graphRef.current) return
+        graphRef.current.zoomToFit(600, 150, (node: any) => traceNodeIds.has(node.id))
+        setTimeout(() => {
+          if (graphRef.current && graphRef.current.zoom() > 4) graphRef.current.zoom(4, 200)
+        }, 650)
+      }, 300)
+    }
+    prevTraceSize.current = traceNodeIds.size
+  }, [traceNodeIds])
+
+  useEffect(() => {
+    if (lastExpandedGroup.size > 0 && lastExpandedGroup.size !== prevExpandGroup.current && graphRef.current) {
+      if (!showGranular) setShowGranular(true)
+      setTimeout(() => {
+        if (!graphRef.current) return
+        graphRef.current.zoomToFit(600, 150, (node: any) => lastExpandedGroup.has(node.id))
+        setTimeout(() => {
+          if (graphRef.current && graphRef.current.zoom() > 4) graphRef.current.zoom(4, 200)
+        }, 650)
+      }, 400)
+    }
+    prevExpandGroup.current = lastExpandedGroup.size
+  }, [lastExpandedGroup])
 
   const filteredNodes = useMemo(
     () => showGranular ? nodes : nodes.filter((n: any) => !GRANULAR_TYPES.has(n.type)),
@@ -175,31 +205,22 @@ export default function GraphPanel({
   }
 
   return (
-    <div className="relative w-full h-full" style={minimized ? { maxHeight: 200 } : undefined}>
+    <div className="relative w-full h-full">
       <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-[11px] font-medium shadow-sm bg-card gap-1.5"
-          onClick={() => setMinimized(!minimized)}
-        >
-          {minimized ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}
-          {minimized ? 'Expand' : 'Minimize'}
-        </Button>
-        <Button
-          variant={showGranular ? 'default' : 'outline'}
-          size="sm"
-          className="h-7 text-[11px] font-medium shadow-sm bg-card gap-1.5"
+          className={`h-7 text-[11px] font-medium shadow-sm gap-1.5 ${showGranular ? 'bg-foreground text-background hover:bg-foreground/90 border-foreground' : 'bg-card'}`}
           onClick={() => setShowGranular(!showGranular)}
         >
           {showGranular ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-          {showGranular ? 'Hide' : 'Show'} Granular
+          {showGranular ? 'Hide Granular Overlay' : 'Show Granular Overlay'}
         </Button>
         <span className="ml-1 text-[10px] text-muted-foreground font-mono tabular-nums">
           {filteredNodes.length} nodes · {filteredEdges.length} edges
-          {highlightedNodes.size > 0 && (
+          {traceNodeIds.size > 0 && (
             <span className="ml-1 text-blue-600 font-semibold">
-              · {highlightedNodes.size} highlighted
+              · {traceNodeIds.size} traced
             </span>
           )}
         </span>
