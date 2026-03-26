@@ -13,36 +13,46 @@ def call_llm(question: str, history: list[dict] | None = None) -> dict:
     system_prompt = build_system_prompt()
     payload = _build_payload(question, system_prompt, history)
     headers = {
-        "X-API-Key": config.LLM_API_KEY,
+        "Authorization": f"Bearer {config.LLM_API_KEY}",
         "Content-Type": "application/json",
     }
 
     with httpx.Client(timeout=config.LLM_TIMEOUT) as client:
         response = client.post(
-            f"{config.LLM_API_URL}/chat",
+            f"{config.LLM_API_URL}/v1/chat/completions",
             json=payload,
             headers=headers,
         )
         response.raise_for_status()
 
     data = response.json()
-    return {"response": data.get("response", ""), "usage": data.get("usage")}
+    content = data["choices"][0]["message"]["content"]
+    usage = data.get("usage")
+    return {"response": content, "usage": usage}
 
 
 def _build_payload(
     question: str, system_prompt: str, history: list[dict] | None
 ) -> dict:
-    payload = {
-        "message": question,
-        "system": system_prompt,
-        "model": config.LLM_MODEL,
-        "max_tokens": config.LLM_MAX_TOKENS,
-    }
+    messages = [
+        {
+            "role": "user",
+            "content": f"<instructions>\n{system_prompt}\n</instructions>\n\nAcknowledge these instructions briefly.",
+        },
+        {
+            "role": "assistant",
+            "content": 'Understood. I will act as the SAP O2C SQL analyst, respond only with the specified JSON format, and reject off-topic queries.',
+        },
+    ]
 
     if history:
-        payload["history"] = [
-            {"role": msg["role"], "content": msg["content"]}
-            for msg in history[-10:]
-        ]
+        for msg in history[-10:]:
+            messages.append({"role": msg["role"], "content": msg["content"]})
 
-    return payload
+    messages.append({"role": "user", "content": question})
+
+    return {
+        "model": config.LLM_MODEL,
+        "messages": messages,
+        "max_tokens": config.LLM_MAX_TOKENS,
+    }
