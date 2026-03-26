@@ -22,7 +22,7 @@ install-frontend:
 	@echo "Frontend dependencies installed."
 
 backend:
-	./venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	./venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8040
 
 frontend:
 	cd frontend && npm run dev
