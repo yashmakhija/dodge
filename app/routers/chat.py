@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from app.services.guardrails import check_off_topic
 from app.services.llm_service import call_llm
 from app.services.sql_executor import execute_safe_query
+from app.services.trace_service import trace_document_flow
 from app.utils.response_parser import format_answer, parse_llm_response
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -20,6 +21,8 @@ class ChatResponse(BaseModel):
     data: list[dict] | None = None
     error: str | None = None
     off_topic: bool = False
+    trace_doc_id: str | None = None
+    trace_flow: list[str] | None = None
 
 
 @router.post("/query", response_model=ChatResponse)
@@ -51,6 +54,9 @@ def chat_query(req: ChatRequest):
             off_topic=True,
         )
 
+    if parsed.get("tool") == "trace":
+        return _handle_trace(parsed)
+
     sql = parsed.get("sql")
     explanation = parsed.get("explanation", "")
 
@@ -72,3 +78,29 @@ def chat_query(req: ChatRequest):
         answer = f"{explanation}\n\nNo results found for this query."
 
     return ChatResponse(answer=answer, sql=sql, data=result["data"][:50])
+
+
+def _handle_trace(parsed: dict) -> ChatResponse:
+    doc_id = parsed.get("doc_id", "")
+    explanation = parsed.get("explanation", "")
+
+    if not doc_id:
+        return ChatResponse(answer="Could not determine document ID to trace.")
+
+    trace_result = trace_document_flow(doc_id)
+    flow = trace_result.get("flow", [])
+
+    if not flow:
+        return ChatResponse(
+            answer=f"No O2C flow found for document {doc_id}.",
+            trace_doc_id=doc_id,
+        )
+
+    flow_str = " → ".join(flow)
+    answer = f"{explanation}\n\n**Flow:** {flow_str}"
+
+    return ChatResponse(
+        answer=answer,
+        trace_doc_id=doc_id,
+        trace_flow=flow,
+    )
