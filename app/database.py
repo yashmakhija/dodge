@@ -1,10 +1,10 @@
-import psycopg2
-import psycopg2.extras
+import psycopg
+from psycopg.rows import dict_row
 
 from app.config import config
 from app.utils.data_loader import ingest_all_tables
 
-_connection: psycopg2.extensions.connection | None = None
+_connection: psycopg.Connection | None = None
 
 INDEXES = [
     ("idx_soh_soldtoparty", "sales_order_headers", "soldToParty"),
@@ -34,14 +34,11 @@ INDEXES = [
 ]
 
 
-
-def get_connection() -> psycopg2.extensions.connection:
+def get_connection() -> psycopg.Connection:
     global _connection
     if _connection is None or _connection.closed:
-        _connection = psycopg2.connect(config.DATABASE_URL)
-        _connection.autocommit = True
+        _connection = psycopg.connect(config.DATABASE_URL, autocommit=True)
     return _connection
-
 
 
 def init_db() -> dict[str, int]:
@@ -68,7 +65,7 @@ def init_db() -> dict[str, int]:
     return counts
 
 
-def _create_indexes(conn: psycopg2.extensions.connection):
+def _create_indexes(conn: psycopg.Connection):
     cur = conn.cursor()
     for idx_name, table, column in INDEXES:
         cur.execute(
@@ -77,10 +74,9 @@ def _create_indexes(conn: psycopg2.extensions.connection):
     cur.close()
 
 
-
 def execute_query(sql: str, params: tuple = ()) -> list[dict]:
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor(row_factory=dict_row)
     cur.execute(sql, params)
     rows = [dict(row) for row in cur.fetchall()]
     cur.close()

@@ -1,8 +1,7 @@
 import json
 from pathlib import Path
 
-import psycopg2.extensions
-import psycopg2.extras
+import psycopg
 
 
 def load_jsonl_file(filepath: str) -> list[dict]:
@@ -41,7 +40,7 @@ def serialize_value(value) -> str | None:
     return str(value)
 
 
-def ingest_table(conn: psycopg2.extensions.connection, table_name: str, rows: list[dict]):
+def ingest_table(conn: psycopg.Connection, table_name: str, rows: list[dict]):
     if not rows:
         return 0
 
@@ -59,17 +58,15 @@ def ingest_table(conn: psycopg2.extensions.connection, table_name: str, rows: li
     for row in rows:
         values.append(tuple(serialize_value(row.get(col)) for col in columns))
 
-    psycopg2.extras.execute_batch(
-        cur,
-        f'INSERT INTO "{table_name}" ({", ".join(cols_quoted)}) VALUES ({placeholders})',
-        values,
-    )
+    with cur.copy(f'COPY "{table_name}" ({", ".join(cols_quoted)}) FROM STDIN') as copy:
+        for row_vals in values:
+            copy.write_row(row_vals)
 
     cur.close()
     return len(values)
 
 
-def ingest_all_tables(conn: psycopg2.extensions.connection, data_dir: str) -> dict[str, int]:
+def ingest_all_tables(conn: psycopg.Connection, data_dir: str) -> dict[str, int]:
     data_path = Path(data_dir)
     counts = {}
 

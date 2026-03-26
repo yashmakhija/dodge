@@ -1,6 +1,6 @@
 import re
 
-import psycopg2
+import psycopg
 
 from app.config import config
 from app.database import get_connection
@@ -54,7 +54,7 @@ def execute_safe_query(sql: str) -> dict:
         rows = [dict(zip(columns, row)) for row in cur.fetchall()]
         return {"success": True, "data": rows, "columns": columns, "error": None}
 
-    except psycopg2.errors.QueryCanceled:
+    except psycopg.errors.QueryCanceled:
         conn.rollback()
         return {
             "success": False,
@@ -63,7 +63,7 @@ def execute_safe_query(sql: str) -> dict:
             "columns": [],
         }
 
-    except psycopg2.Error as e:
+    except psycopg.Error as e:
         conn.rollback()
         return {
             "success": False,
