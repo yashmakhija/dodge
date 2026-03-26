@@ -6,7 +6,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import Logo from '@/components/Logo'
-import { ChevronDown, ChevronUp, Code2, Table2, Trash2, MessageSquare } from 'lucide-react'
+import { ChevronDown, ChevronUp, Code2, Table2, Trash2, MessageSquare, Copy, Check } from 'lucide-react'
 import type { ChatMessage } from '@/store/chatStore'
 
 const SUGGESTIONS = [
@@ -173,8 +173,24 @@ function ThinkingDots() {
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const [showSql, setShowSql] = useState(false)
+  const [copiedSql, setCopiedSql] = useState(false)
+  const [copiedAnswer, setCopiedAnswer] = useState(false)
   const hasData = message.data && message.data.length > 0
   const [showData, setShowData] = useState(hasData && message.data!.length <= 20)
+
+  const handleCopySql = () => {
+    if (message.sql) {
+      navigator.clipboard.writeText(message.sql)
+      setCopiedSql(true)
+      setTimeout(() => setCopiedSql(false), 1500)
+    }
+  }
+
+  const handleCopyAnswer = () => {
+    navigator.clipboard.writeText(message.content)
+    setCopiedAnswer(true)
+    setTimeout(() => setCopiedAnswer(false), 1500)
+  }
 
   if (message.loading) {
     return (
@@ -250,9 +266,17 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           </button>
         )}
         {message.sql && showSql && (
-          <pre className="p-3 bg-foreground/[0.03] border rounded-md text-[11px] font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap text-foreground/70">
-            {message.sql}
-          </pre>
+          <div className="relative group/sql">
+            <pre className="p-3 pr-8 bg-foreground/[0.03] border rounded-md text-[11px] font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap text-foreground/70">
+              {message.sql}
+            </pre>
+            <button
+              onClick={handleCopySql}
+              className="absolute top-2 right-2 p-1 rounded hover:bg-muted transition-opacity opacity-0 group-hover/sql:opacity-100 cursor-pointer"
+            >
+              {copiedSql ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
+            </button>
+          </div>
         )}
 
         {hasData && (

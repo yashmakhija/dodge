@@ -34,6 +34,13 @@ export const useChatStore = create<ChatState>()(
       loading: false,
 
       sendMessage: async (question: string) => {
+        const prevMessages = get().messages.filter((m) => !m.loading && m.id !== 'welcome')
+
+        const history = prevMessages.slice(-10).map((m) => ({
+          role: m.role,
+          content: m.content,
+        }))
+
         const userMsg: ChatMessage = {
           id: `user-${Date.now()}`,
           role: 'user',
@@ -52,11 +59,6 @@ export const useChatStore = create<ChatState>()(
         }))
 
         useGraphStore.getState().clearTrace()
-
-        const history = get()
-          .messages.filter((m) => m.id !== 'welcome' && !m.loading)
-          .slice(-10)
-          .map((m) => ({ role: m.role, content: m.content }))
 
         try {
           const response: ChatResponse = await sendChatQuery(question, history)
