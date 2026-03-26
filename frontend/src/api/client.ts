@@ -53,6 +53,17 @@ export async function fetchExpandNode(nodeId: string): Promise<GraphResponse> {
   return data
 }
 
+export interface TraceResponse {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  flow: string[]
+}
+
+export async function fetchTrace(docId: string): Promise<TraceResponse> {
+  const { data } = await api.get<TraceResponse>(`/graph/trace/${encodeURIComponent(docId)}`)
+  return data
+}
+
 export async function sendChatQuery(
   question: string,
   history: { role: string; content: string }[]

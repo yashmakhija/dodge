@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Send, ChevronDown, ChevronUp, Database, Loader2 } from 'lucide-react'
-import type { ChatMessage } from '@/hooks/useChat'
+import Logo from '@/components/Logo'
+import { ChevronDown, ChevronUp, Code2, Table2, Sparkles } from 'lucide-react'
+import type { ChatMessage } from '@/store/chatStore'
+
+const SUGGESTIONS = [
+  'How many sales orders are there?',
+  'Which products have the most billing documents?',
+  'Trace the flow of billing document 91150187',
+  'Find sales orders delivered but not billed',
+  'Show all business partners',
+  'What is the total net amount across all sales orders?',
+]
 
 interface Props {
   messages: ChatMessage[]
@@ -16,11 +22,12 @@ interface Props {
 export default function ChatPanel({ messages, loading, onSend }: Props) {
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const showSuggestions = messages.length <= 1
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
   }, [messages])
 
   const handleSubmit = () => {
@@ -28,6 +35,7 @@ export default function ChatPanel({ messages, loading, onSend }: Props) {
     if (!trimmed || loading) return
     onSend(trimmed)
     setInput('')
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -37,68 +45,135 @@ export default function ChatPanel({ messages, loading, onSend }: Props) {
     }
   }
 
+  const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+    const el = e.target
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+  }
+
   return (
-    <aside className="w-[370px] shrink-0 bg-card flex flex-col border-l">
-      <div className="flex items-center gap-3 p-4 border-b">
-        <div className="w-10 h-10 bg-primary text-primary-foreground rounded-xl grid place-items-center font-bold text-base tracking-tight shrink-0">
-          D
-        </div>
-        <div>
-          <div className="text-sm font-bold tracking-tight">Dodge AI</div>
-          <div className="text-[11.5px] text-muted-foreground">Graph Agent</div>
-        </div>
+    <aside className="w-[380px] h-full shrink-0 bg-card flex flex-col rounded-md border overflow-hidden">
+      <div className="px-5 pt-4 pb-3 border-b shrink-0">
+        <div className="text-[13px] font-semibold">Chat with Graph</div>
+        <div className="text-[11px] text-muted-foreground">Order to Cash</div>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div ref={scrollRef} className="p-4 space-y-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0">
+        <div className="px-5 py-4 space-y-5">
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
           ))}
+
+          {showSuggestions && (
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
+                <Sparkles className="h-3 w-3" />
+                Try asking
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {SUGGESTIONS.map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => { if (!loading) onSend(q) }}
+                    disabled={loading}
+                    className="text-left text-[11.5px] px-2.5 py-1.5 bg-muted/60 hover:bg-muted border rounded-md text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </ScrollArea>
+      </div>
 
-      <Separator />
-
-      <div className="p-3.5 space-y-2.5">
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`} />
+      <div className="shrink-0 mx-4 mb-4 border rounded-lg bg-muted/30">
+        <div className="flex items-center gap-1.5 px-3.5 pt-3 text-[10.5px] text-muted-foreground">
+          <span className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
           {loading ? 'Dodge AI is thinking...' : 'Dodge AI is awaiting instructions'}
         </div>
-        <div className="flex gap-2">
-          <Input
+        <div className="px-3.5 pt-1.5">
+          <textarea
+            ref={textareaRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleTextareaInput}
             onKeyDown={handleKeyDown}
             placeholder="Analyze anything"
             disabled={loading}
-            className="text-sm"
+            rows={1}
+            className="w-full bg-transparent text-[13px] leading-relaxed text-foreground placeholder:text-muted-foreground/50 resize-none outline-none disabled:opacity-50 min-h-[24px] max-h-[120px]"
           />
-          <Button size="icon" onClick={handleSubmit} disabled={loading || !input.trim()}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
+        </div>
+        <div className="flex justify-end px-3 pb-3">
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !input.trim()}
+            className="px-4 py-1.5 bg-foreground text-background text-[12px] font-semibold rounded-md disabled:opacity-25 hover:opacity-90 transition-opacity"
+          >
+            Send
+          </button>
         </div>
       </div>
     </aside>
   )
 }
 
+function ThinkingDots() {
+  return (
+    <span className="inline-flex items-center gap-[3px] h-5">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="w-[5px] h-[5px] rounded-full bg-muted-foreground/60"
+          style={{
+            animation: 'thinking 1.4s infinite',
+            animationDelay: `${i * 0.2}s`,
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes thinking {
+          0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+          30% { opacity: 1; transform: translateY(-3px); }
+        }
+      `}</style>
+    </span>
+  )
+}
+
 function MessageBubble({ message }: { message: ChatMessage }) {
   const [showSql, setShowSql] = useState(false)
-  const [showData, setShowData] = useState(false)
+  const hasData = message.data && message.data.length > 0
+  const [showData, setShowData] = useState(hasData && message.data!.length <= 20)
 
   if (message.loading) {
     return (
-      <div className="flex gap-2 items-center max-w-[90%] px-3.5 py-2.5 bg-muted rounded-xl rounded-bl-sm">
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Thinking...</span>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2.5">
+          <Logo size={28} className="shrink-0" />
+          <div>
+            <div className="text-[12px] font-bold leading-tight">Dodge AI</div>
+            <div className="text-[10px] text-muted-foreground leading-tight">Graph Agent</div>
+          </div>
+        </div>
+        <div className="pl-[38px]">
+          <ThinkingDots />
+        </div>
       </div>
     )
   }
 
   if (message.role === 'user') {
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[85%] px-3.5 py-2.5 bg-primary text-primary-foreground rounded-xl rounded-br-sm text-sm leading-relaxed">
+      <div className="flex flex-col items-end gap-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground">You</span>
+          <div className="w-6 h-6 bg-muted rounded-full grid place-items-center text-[12px]">
+            👤
+          </div>
+        </div>
+        <div className="bg-foreground text-background px-4 py-2.5 rounded-2xl rounded-tr-sm text-[13px] leading-relaxed max-w-[90%]">
           {message.content}
         </div>
       </div>
@@ -106,58 +181,70 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   }
 
   return (
-    <div className="max-w-[95%] space-y-2">
-      <div className="px-3.5 py-2.5 bg-muted rounded-xl rounded-bl-sm text-sm leading-relaxed text-muted-foreground">
-        <FormattedContent content={message.content} />
+    <div className="space-y-2">
+      <div className="flex items-center gap-2.5">
+        <Logo size={28} className="shrink-0" />
+        <div>
+          <div className="text-[12px] font-bold leading-tight">Dodge AI</div>
+          <div className="text-[10px] text-muted-foreground leading-tight">Graph Agent</div>
+        </div>
       </div>
 
-      {message.sql && (
-        <div>
+      <div className="pl-[38px] space-y-2.5">
+        <div className="text-[13px] leading-relaxed text-foreground/90">
+          <FormattedContent content={message.content} />
+        </div>
+
+        {message.sql && (
           <button
             onClick={() => setShowSql(!showSql)}
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors group"
           >
-            <Database className="h-3 w-3" />
-            <span>SQL Query</span>
+            <Code2 className="h-3 w-3" />
+            <span className="group-hover:underline">SQL Query</span>
             {showSql ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </button>
-          {showSql && (
-            <pre className="mt-1.5 p-3 bg-primary/5 border rounded-md text-[11px] font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap text-foreground/80">
-              {message.sql}
-            </pre>
-          )}
-        </div>
-      )}
+        )}
+        {message.sql && showSql && (
+          <pre className="p-3 bg-foreground/[0.03] border rounded-md text-[11px] font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap text-foreground/70">
+            {message.sql}
+          </pre>
+        )}
 
-      {message.data && message.data.length > 0 && (
-        <div>
+        {hasData && (
           <button
             onClick={() => setShowData(!showData)}
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors group"
           >
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-              {message.data.length} rows
+            <Table2 className="h-3 w-3" />
+            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 font-mono">
+              {message.data!.length}
             </Badge>
-            <span>Results</span>
+            <span className="group-hover:underline">Results</span>
             {showData ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </button>
-          {showData && <DataTable data={message.data} />}
-        </div>
-      )}
+        )}
+        {hasData && showData && <DataTable data={message.data!} />}
+      </div>
     </div>
   )
 }
 
 function FormattedContent({ content }: { content: string }) {
-  const parts = content.split(/(\*\*[^*]+\*\*)/g)
+  const lines = content.split('\n')
   return (
     <>
-      {parts.map((part, i) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          return <strong key={i} className="text-foreground font-semibold">{part.slice(2, -2)}</strong>
-        }
-        return <span key={i}>{part}</span>
-      })}
+      {lines.map((line, li) => (
+        <span key={li}>
+          {li > 0 && <br />}
+          {line.split(/(\*\*[^*]+\*\*)/).map((part, pi) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              return <strong key={pi} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
+            }
+            return <span key={pi}>{part}</span>
+          })}
+        </span>
+      ))}
     </>
   )
 }
@@ -167,12 +254,12 @@ function DataTable({ data }: { data: Record<string, string | null>[] }) {
   const columns = Object.keys(data[0])
 
   return (
-    <div className="mt-1.5 border rounded-md overflow-auto max-h-[250px]">
-      <table className="w-full text-[11px]">
+    <div className="border rounded-md overflow-auto max-h-[220px]">
+      <table className="w-full text-[10.5px]">
         <thead>
-          <tr className="bg-muted/50 sticky top-0">
+          <tr className="bg-muted/60 sticky top-0">
             {columns.map((col) => (
-              <th key={col} className="px-2.5 py-1.5 text-left font-semibold text-foreground whitespace-nowrap border-b">
+              <th key={col} className="px-2 py-1.5 text-left font-semibold text-foreground whitespace-nowrap border-b">
                 {col}
               </th>
             ))}
@@ -182,7 +269,7 @@ function DataTable({ data }: { data: Record<string, string | null>[] }) {
           {data.slice(0, 20).map((row, i) => (
             <tr key={i} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
               {columns.map((col) => (
-                <td key={col} className="px-2.5 py-1.5 text-muted-foreground whitespace-nowrap font-mono">
+                <td key={col} className="px-2 py-1 text-muted-foreground whitespace-nowrap font-mono">
                   {row[col] ?? '—'}
                 </td>
               ))}

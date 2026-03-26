@@ -1,51 +1,62 @@
+import { useEffect, useMemo } from 'react'
 import Breadcrumb from '@/components/Breadcrumb'
 import ChatPanel from '@/components/ChatPanel'
 import GraphPanel from '@/components/GraphPanel'
 import NodeDetail from '@/components/NodeDetail'
-import { useChat } from '@/hooks/useChat'
-import { useGraph } from '@/hooks/useGraph'
+import { useGraphStore } from '@/store/graphStore'
+import { useChatStore } from '@/store/chatStore'
+import { useHighlightedNodes } from '@/hooks/useHighlightedNodes'
 
 export default function App() {
-  const graph = useGraph()
-  const chat = useChat()
+  const {
+    nodes, edges, loading, error, selectedNode, expandedNodes, traceNodeIds,
+    fetchOverview, selectNode, clearSelection, expandNode,
+  } = useGraphStore()
+
+  const { messages, loading: chatLoading, sendMessage } = useChatStore()
+
+  useEffect(() => { fetchOverview() }, [fetchOverview])
+
+  const graphNodeIds = useMemo(() => new Set(nodes.map((n) => n.id)), [nodes])
+  const highlightedNodes = useHighlightedNodes(messages, graphNodeIds)
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col">
       <Breadcrumb />
-
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 relative min-w-0 bg-muted/30">
+      <div className="flex-1 flex overflow-hidden p-2 gap-2 bg-muted/40">
+        <div className="flex-1 relative min-w-0 overflow-hidden rounded-md bg-card border">
           <GraphPanel
-            nodes={graph.nodes}
-            edges={graph.edges}
-            loading={graph.loading}
-            selectedNode={graph.selectedNode}
-            expandedNodes={graph.expandedNodes}
-            onNodeClick={graph.selectNode}
-            onNodeExpand={graph.expandNode}
+            nodes={nodes}
+            edges={edges}
+            loading={loading}
+            selectedNode={selectedNode}
+            expandedNodes={expandedNodes}
+            highlightedNodes={highlightedNodes}
+            traceNodeIds={traceNodeIds}
+            onNodeClick={selectNode}
+            onNodeExpand={expandNode}
           />
-
-          {graph.selectedNode && (
+          {selectedNode && (
             <NodeDetail
-              node={graph.selectedNode}
-              onClose={graph.clearSelection}
-              onExpand={graph.expandNode}
-              isExpanded={graph.expandedNodes.has(graph.selectedNode.id)}
+              node={selectedNode}
+              onClose={clearSelection}
+              onExpand={expandNode}
+              isExpanded={expandedNodes.has(selectedNode.id)}
             />
           )}
-
-          {graph.error && (
-            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 px-4 py-2 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-xs z-30">
-              {graph.error}
+          {error && (
+            <div className="absolute bottom-14 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-destructive/10 border border-destructive/20 rounded text-destructive text-[11px] z-30">
+              {error}
             </div>
           )}
         </div>
-
-        <ChatPanel
-          messages={chat.messages}
-          loading={chat.loading}
-          onSend={chat.sendMessage}
-        />
+        <div className="relative z-10 shrink-0">
+          <ChatPanel
+            messages={messages}
+            loading={chatLoading}
+            onSend={sendMessage}
+          />
+        </div>
       </div>
     </div>
   )

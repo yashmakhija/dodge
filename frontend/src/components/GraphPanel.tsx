@@ -1,17 +1,17 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import ForceGraph2D from 'react-force-graph-2d'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Minimize2, Maximize2, Eye, EyeOff } from 'lucide-react'
 import type { NodeDetailResponse } from '@/api/client'
 
 const NODE_COLORS: Record<string, string> = {
-  SalesOrder: '#3b82f6',
-  Delivery: '#10b981',
-  BillingDocument: '#f59e0b',
-  JournalEntry: '#8b5cf6',
-  Payment: '#14b8a6',
-  BusinessPartner: '#ef4444',
-  Product: '#f97316',
+  SalesOrder: '#2563eb',
+  Delivery: '#059669',
+  BillingDocument: '#d97706',
+  JournalEntry: '#7c3aed',
+  Payment: '#0d9488',
+  BusinessPartner: '#dc2626',
+  Product: '#ea580c',
   SalesOrderItem: '#93c5fd',
   DeliveryItem: '#6ee7b7',
   BillingDocumentItem: '#fcd34d',
@@ -23,13 +23,13 @@ const NODE_COLORS: Record<string, string> = {
 }
 
 const NODE_RADII: Record<string, number> = {
-  BusinessPartner: 8,
-  SalesOrder: 6,
-  Delivery: 5,
-  BillingDocument: 5,
-  Product: 5,
-  JournalEntry: 4,
-  Payment: 4,
+  BusinessPartner: 7,
+  SalesOrder: 5,
+  Delivery: 4.5,
+  BillingDocument: 4.5,
+  Product: 4,
+  JournalEntry: 3.5,
+  Payment: 3.5,
 }
 
 const GRANULAR_TYPES = new Set([
@@ -41,7 +41,7 @@ const LEGEND: [string, string][] = [
   ['SalesOrder', 'Sales Order'],
   ['Delivery', 'Delivery'],
   ['BillingDocument', 'Billing'],
-  ['JournalEntry', 'Journal Entry'],
+  ['JournalEntry', 'Journal'],
   ['Payment', 'Payment'],
   ['BusinessPartner', 'Customer'],
   ['Product', 'Product'],
@@ -53,6 +53,8 @@ interface Props {
   loading: boolean
   selectedNode: NodeDetailResponse | null
   expandedNodes: Set<string>
+  highlightedNodes: Set<string>
+  traceNodeIds: Set<string>
   onNodeClick: (nodeId: string) => void
   onNodeExpand: (nodeId: string) => void
 }
@@ -63,144 +65,181 @@ export default function GraphPanel({
   loading,
   selectedNode,
   expandedNodes,
+  highlightedNodes,
+  traceNodeIds,
   onNodeClick,
   onNodeExpand,
 }: Props) {
   const graphRef = useRef<any>(null)
+  const selectedRef = useRef(selectedNode)
+  const expandedRef = useRef(expandedNodes)
+  const highlightedRef = useRef(highlightedNodes)
+  const traceRef = useRef(traceNodeIds)
+  selectedRef.current = selectedNode
+  expandedRef.current = expandedNodes
+  highlightedRef.current = highlightedNodes
+  traceRef.current = traceNodeIds
+
   const [showGranular, setShowGranular] = useState(false)
   const [minimized, setMinimized] = useState(false)
 
-  const filteredNodes = showGranular
-    ? nodes
-    : nodes.filter((n: any) => !GRANULAR_TYPES.has(n.type))
+  const filteredNodes = useMemo(
+    () => showGranular ? nodes : nodes.filter((n: any) => !GRANULAR_TYPES.has(n.type)),
+    [nodes, showGranular]
+  )
 
-  const visibleIds = new Set(filteredNodes.map((n: any) => n.id))
-  const filteredEdges = edges.filter((e: any) => {
-    const src = typeof e.source === 'string' ? e.source : e.source?.id
-    const tgt = typeof e.target === 'string' ? e.target : e.target?.id
-    return visibleIds.has(src) && visibleIds.has(tgt)
-  })
+  const filteredEdges = useMemo(() => {
+    const ids = new Set(filteredNodes.map((n: any) => n.id))
+    return edges.filter((e: any) => {
+      const s = typeof e.source === 'string' ? e.source : e.source?.id
+      const t = typeof e.target === 'string' ? e.target : e.target?.id
+      return ids.has(s) && ids.has(t)
+    })
+  }, [edges, filteredNodes])
 
-  const graphData = { nodes: filteredNodes, links: filteredEdges }
+  const graphData = useMemo(
+    () => ({ nodes: filteredNodes, links: filteredEdges }),
+    [filteredNodes, filteredEdges]
+  )
 
   const paintNode = useCallback(
     (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      const r = NODE_RADII[node.type] || 3.5
+      const r = NODE_RADII[node.type] || 3
       const color = NODE_COLORS[node.type] || '#94a3b8'
-      const isSelected = selectedNode?.id === node.id
+      const selected = selectedRef.current?.id === node.id
+      const highlighted = highlightedRef.current.has(node.id)
+      const traced = traceRef.current.has(node.id)
+      const emphasis = highlighted || traced
+      const drawR = emphasis ? r + 1.5 : r
+
+      if (traced && !selected) {
+        ctx.beginPath()
+        ctx.arc(node.x, node.y, drawR + 4, 0, Math.PI * 2)
+        ctx.strokeStyle = color
+        ctx.lineWidth = 2.5
+        ctx.stroke()
+      } else if (highlighted && !selected) {
+        ctx.beginPath()
+        ctx.arc(node.x, node.y, drawR + 3, 0, Math.PI * 2)
+        ctx.strokeStyle = color
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
 
       ctx.beginPath()
-      ctx.arc(node.x, node.y, r, 0, Math.PI * 2)
+      ctx.arc(node.x, node.y, drawR, 0, Math.PI * 2)
 
-      if (isSelected) {
+      if (selected) {
         ctx.fillStyle = color
         ctx.fill()
         ctx.strokeStyle = '#0f172a'
-        ctx.lineWidth = 2.5
+        ctx.lineWidth = 2
         ctx.stroke()
-        ctx.beginPath()
-        ctx.arc(node.x, node.y, r + 4, 0, Math.PI * 2)
-        ctx.strokeStyle = `${color}40`
-        ctx.lineWidth = 3
-        ctx.stroke()
-      } else if (expandedNodes.has(node.id)) {
+      } else if (emphasis) {
         ctx.fillStyle = color
         ctx.fill()
-        ctx.strokeStyle = `${color}80`
-        ctx.lineWidth = 1.5
+      } else if (expandedRef.current.has(node.id)) {
+        ctx.fillStyle = color
+        ctx.fill()
+        ctx.strokeStyle = `${color}60`
+        ctx.lineWidth = 1.2
         ctx.stroke()
       } else {
-        ctx.fillStyle = `${color}cc`
+        ctx.fillStyle = `${color}c0`
         ctx.fill()
       }
 
-      if (globalScale > 2) {
-        const fontSize = Math.max(9 / globalScale, 2.5)
-        ctx.font = `500 ${fontSize}px 'Geist Variable', sans-serif`
-        ctx.fillStyle = '#334155'
+      const showLabel = globalScale > 2.5 || traced
+      if (showLabel) {
+        const fs = traced ? Math.max(10 / globalScale, 3) : Math.max(8 / globalScale, 2)
+        ctx.font = `${traced ? '600' : '500'} ${fs}px 'IBM Plex Sans', sans-serif`
+        ctx.fillStyle = traced ? '#0f172a' : '#1e293b'
         ctx.textAlign = 'center'
         ctx.textBaseline = 'top'
-        ctx.fillText(node.label || '', node.x, node.y + r + 2)
+        ctx.fillText(node.label || '', node.x, node.y + drawR + 1.5)
       }
     },
-    [selectedNode, expandedNodes]
+    []
   )
 
-  const handleNodeClick = useCallback(
-    (node: any) => onNodeClick(node.id),
-    [onNodeClick]
-  )
-
-  const handleNodeRightClick = useCallback(
-    (node: any) => onNodeExpand(node.id),
-    [onNodeExpand]
-  )
+  const handleClick = useCallback((node: any) => onNodeClick(node.id), [onNodeClick])
+  const handleRightClick = useCallback((node: any) => onNodeExpand(node.id), [onNodeExpand])
 
   if (loading) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-muted-foreground text-sm">
-        <div className="w-6 h-6 border-[2.5px] border-muted border-t-primary rounded-full animate-spin" />
-        <p>Loading graph data...</p>
+      <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-muted-foreground text-[13px]">
+        <div className="w-5 h-5 border-2 border-muted border-t-foreground rounded-full animate-spin" />
+        <p>Loading graph...</p>
       </div>
     )
   }
 
   return (
-    <div className={`relative w-full ${minimized ? 'h-[180px]' : 'h-full'}`}>
-      <div className="absolute top-3.5 left-3.5 z-10 flex items-center gap-1.5">
-        <Button variant="outline" size="sm" className="h-7 text-xs shadow-sm" onClick={() => setMinimized(!minimized)}>
-          {minimized ? '⤢ Expand' : '⤡ Minimize'}
+    <div className="relative w-full h-full" style={minimized ? { maxHeight: 200 } : undefined}>
+      <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-[11px] font-medium shadow-sm bg-card gap-1.5"
+          onClick={() => setMinimized(!minimized)}
+        >
+          {minimized ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}
+          {minimized ? 'Expand' : 'Minimize'}
         </Button>
         <Button
           variant={showGranular ? 'default' : 'outline'}
           size="sm"
-          className="h-7 text-xs shadow-sm"
+          className="h-7 text-[11px] font-medium shadow-sm bg-card gap-1.5"
           onClick={() => setShowGranular(!showGranular)}
         >
-          {showGranular ? '◉ Hide' : '○ Show'} Granular Overlay
+          {showGranular ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+          {showGranular ? 'Hide' : 'Show'} Granular
         </Button>
-        <span className="ml-1.5 text-[11px] text-muted-foreground font-mono">
+        <span className="ml-1 text-[10px] text-muted-foreground font-mono tabular-nums">
           {filteredNodes.length} nodes · {filteredEdges.length} edges
+          {highlightedNodes.size > 0 && (
+            <span className="ml-1 text-blue-600 font-semibold">
+              · {highlightedNodes.size} highlighted
+            </span>
+          )}
         </span>
       </div>
 
-      {!minimized && (
-        <ForceGraph2D
-          ref={graphRef}
-          graphData={graphData}
-          nodeCanvasObject={paintNode}
-          nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
-            ctx.beginPath()
-            ctx.arc(node.x, node.y, (NODE_RADII[node.type] || 3.5) + 3, 0, Math.PI * 2)
-            ctx.fillStyle = color
-            ctx.fill()
-          }}
-          onNodeClick={handleNodeClick}
-          onNodeRightClick={handleNodeRightClick}
-          linkColor={() => 'rgba(148, 163, 184, 0.3)'}
-          linkWidth={0.6}
-          linkDirectionalArrowLength={3.5}
-          linkDirectionalArrowRelPos={1}
-          linkDirectionalArrowColor={() => 'rgba(148, 163, 184, 0.45)'}
-          d3AlphaDecay={0.04}
-          d3VelocityDecay={0.25}
-          cooldownTicks={120}
-          warmupTicks={60}
-          backgroundColor="transparent"
-        />
-      )}
+      <ForceGraph2D
+        ref={graphRef}
+        graphData={graphData}
+        nodeCanvasObject={paintNode}
+        nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
+          ctx.beginPath()
+          ctx.arc(node.x, node.y, (NODE_RADII[node.type] || 3) + 3, 0, Math.PI * 2)
+          ctx.fillStyle = color
+          ctx.fill()
+        }}
+        onNodeClick={handleClick}
+        onNodeRightClick={handleRightClick}
+        linkColor={() => 'rgba(148, 163, 184, 0.18)'}
+        linkWidth={0.5}
+        linkDirectionalArrowLength={3}
+        linkDirectionalArrowRelPos={1}
+        linkDirectionalArrowColor={() => 'rgba(148, 163, 184, 0.3)'}
+        d3AlphaDecay={0.04}
+        d3VelocityDecay={0.25}
+        cooldownTicks={120}
+        warmupTicks={60}
+        backgroundColor="transparent"
+      />
 
-      <div className="absolute bottom-3.5 left-3.5 z-10 flex flex-wrap gap-2 px-3 py-2 bg-card/90 backdrop-blur-sm border rounded-md shadow-sm">
+      <div className="absolute bottom-3 left-3 z-10 flex items-center gap-3 px-3 py-1.5 bg-card/95 backdrop-blur-sm border rounded-md shadow-sm">
         {LEGEND.map(([type, label]) => (
-          <Badge key={type} variant="secondary" className="gap-1.5 text-[10.5px] font-medium py-0.5 px-2">
-            <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ background: NODE_COLORS[type] }} />
+          <span key={type} className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+            <span className="w-2 h-2 rounded-full" style={{ background: NODE_COLORS[type] }} />
             {label}
-          </Badge>
+          </span>
         ))}
       </div>
 
-      <div className="absolute bottom-3.5 right-3.5 z-10 text-[10.5px] text-muted-foreground bg-card/85 px-2.5 py-1 rounded-md border">
-        Click to inspect · Right-click to expand
+      <div className="absolute bottom-3 right-3 z-10 text-[10px] text-muted-foreground/60 font-mono">
+        click: inspect · right-click: expand
       </div>
     </div>
   )
